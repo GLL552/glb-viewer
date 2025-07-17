@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>GLB Viewer</title>
+  <style>
+    body { margin: 0; overflow: hidden; background: #111; }
+    canvas { display: block; }
+  </style>
+</head>
+<body>
+<script type="module">
+import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
+import { GLTFLoader } from 'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/GLTFLoader.js';
+import { OrbitControls } from 'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/controls/OrbitControls.js';
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(75, innerWidth / innerHeight, 0.1, 1000);
+const renderer = new THREE.WebGLRenderer({ preserveDrawingBuffer: true });
+renderer.setSize(innerWidth, innerHeight);
+document.body.appendChild(renderer.domElement);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+camera.position.set(2, 2, 2);
+controls.update();
+
+const light = new THREE.HemisphereLight(0xffffff, 0x444444);
+scene.add(light);
+
+const url = new URLSearchParams(window.location.search).get('url');
+if (url) {
+  const loader = new GLTFLoader();
+  loader.load(url, (gltf) => {
+    gltf.scene.traverse((child) => {
+      if (child.isMesh) {
+        child.material.flatShading = false;
+        child.material.needsUpdate = true;
+      }
+    });
+    scene.add(gltf.scene);
+  });
+}
+
+function animate() {
+  requestAnimationFrame(animate);
+  controls.update();
+  renderer.render(scene, camera);
+}
+animate();
+</script>
+</body>
+</html>
