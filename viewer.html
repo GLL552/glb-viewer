@@ -2,22 +2,38 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>GLB Viewer</title>
+  <title>GLB Viewer with Upload</title>
   <style>
-    body { margin: 0; overflow: hidden; background: #111; }
-    canvas { display: block; }
+    body { margin: 0; overflow: hidden; background: #111; color: white; font-family: sans-serif; }
+    #upload-label {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      background: #222;
+      padding: 8px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+      z-index: 10;
+    }
+    #upload-input {
+      display: none;
+    }
   </style>
 </head>
 <body>
+
+<label id="upload-label" for="upload-input">⬆️ Upload GLB file</label>
+<input type="file" id="upload-input" accept=".glb" />
+
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
 import { GLTFLoader } from 'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/GLTFLoader.js';
 import { OrbitControls } from 'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/controls/OrbitControls.js';
 
 const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(75, innerWidth / innerHeight, 0.1, 1000);
-const renderer = new THREE.WebGLRenderer({ preserveDrawingBuffer: true });
-renderer.setSize(innerWidth, innerHeight);
+const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+const renderer = new THREE.WebGLRenderer({ preserveDrawingBuffer: true, antialias: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
 
 const controls = new OrbitControls(camera, renderer.domElement);
@@ -27,19 +43,51 @@ controls.update();
 const light = new THREE.HemisphereLight(0xffffff, 0x444444);
 scene.add(light);
 
-const url = new URLSearchParams(window.location.search).get('url');
-if (url) {
-  const loader = new GLTFLoader();
+// פונקציה לניקוי המודל הקודם מהסצנה
+function clearScene() {
+  while(scene.children.length > 0){
+    const child = scene.children[0];
+    if(child.geometry) child.geometry.dispose();
+    if(child.material) {
+      if(Array.isArray(child.material)) {
+        child.material.forEach(m => m.dispose());
+      } else {
+        child.material.dispose();
+      }
+    }
+    scene.remove(child);
+  }
+  scene.add(light); // מחזירים את האור לסצנה
+}
+
+const loader = new GLTFLoader();
+
+document.getElementById('upload-input').addEventListener('change', (event) => {
+  const file = event.target.files[0];
+  if(!file) return;
+
+  const url = URL.createObjectURL(file);
+  clearScene();
+
   loader.load(url, (gltf) => {
     gltf.scene.traverse((child) => {
-      if (child.isMesh) {
+      if(child.isMesh) {
         child.material.flatShading = false;
         child.material.needsUpdate = true;
       }
     });
     scene.add(gltf.scene);
+    URL.revokeObjectURL(url);
+  }, undefined, (error) => {
+    alert('Error loading model: ' + error.message);
   });
-}
+});
+
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
 
 function animate() {
   requestAnimationFrame(animate);
